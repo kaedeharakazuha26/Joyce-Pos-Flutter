@@ -101,4 +101,65 @@ void main() {
     expect(adminDash['cogs'], 24.0);
     expect(adminDash['gross_profit'], 26.0);
   });
+
+  test('dashboard includes finance_summary, top_employees combining salary/comm/ld, and shift_history', () {
+    repo.startDay(businessDate: '2026-10-26', openedBy: 'Admin', openingCash: 500);
+    repo.saveExpense({'category': 'Rent', 'description': 'Monthly', 'amount': 150.0, 'date': '2026-10-26'});
+    repo.saveSalary({'employee': 'Alice', 'amount': 300.0, 'date': '2026-10-26'});
+    repo.saveCommission({'employee_name': 'Alice', 'type': 'sales', 'amount': 120.0, 'date': '2026-10-26'});
+    repo.saveLdCommission({'employee_name': 'Alice', 'amount': 80.0, 'date': '2026-10-26'});
+    repo.saveSalary({'employee': 'Bob', 'amount': 250.0, 'date': '2026-10-26'});
+
+    final dash = repo.dashboard(from: '2026-10-26', to: '2026-10-26');
+    final finance = dash['finance_summary'] as Map<String, dynamic>;
+    expect(finance['expenses']['total'], 150.0);
+    expect(finance['salaries']['total'], 550.0);
+    expect(finance['commissions']['total'], 120.0);
+    expect(finance['ld_commissions']['total'], 80.0);
+
+    final topEarners = (dash['top_employees'] as List).cast<Map<String, dynamic>>();
+    expect(topEarners.isNotEmpty, isTrue);
+    // Alice = 300 + 120 + 80 = 500 total
+    final alice = topEarners.firstWhere((e) => e['employee'] == 'Alice');
+    expect(alice['salary'], 300.0);
+    expect(alice['commission'], 120.0);
+    expect(alice['ld_commission'], 80.0);
+    expect(alice['total'], 500.0);
+
+    final shifts = (dash['shift_history'] as List).cast<Map<String, dynamic>>();
+    expect(shifts.isNotEmpty, isTrue);
+    expect(shifts.first['business_date'], '2026-10-26');
+  });
+
+  test('disabling salary/commission/ld-commission masks them and empties top_employees', () {
+    repo.startDay(businessDate: '2026-10-26', openedBy: 'Admin', openingCash: 500);
+    repo.saveSalary({'employee': 'Alice', 'amount': 300.0, 'date': '2026-10-26'});
+    repo.saveCommission({'employee_name': 'Alice', 'type': 'sales', 'amount': 120.0, 'date': '2026-10-26'});
+    repo.saveLdCommission({'employee_name': 'Alice', 'amount': 80.0, 'date': '2026-10-26'});
+
+    repo.setSettings({'disabled_menus': '["salary", "commission", "ld-commission"]'});
+    final dash = repo.dashboard(from: '2026-10-26', to: '2026-10-26');
+    final finance = dash['finance_summary'] as Map<String, dynamic>;
+    expect(finance['salaries']['enabled'], isFalse);
+    expect(finance['salaries']['total'], 0.0);
+    expect(finance['commissions']['enabled'], isFalse);
+    expect(finance['ld_commissions']['enabled'], isFalse);
+
+    final topEarners = (dash['top_employees'] as List).cast<Map<String, dynamic>>();
+    expect(topEarners.isEmpty, isTrue);
+  });
+
+  test('getDashboardCardOrder returns defaults and saveDashboardCardOrder persists custom order', () {
+    final defaults = repo.getDashboardCardOrder();
+    expect(defaults, containsAll(['kpis', 'daily_trend', 'finance_breakdown', 'top_employees', 'top_products', 'variant_sales', 'stock_alerts', 'shift_history']));
+
+    final customOrder = ['shift_history', 'kpis', 'finance_breakdown'];
+    repo.saveDashboardCardOrder(customOrder);
+    final reloaded = repo.getDashboardCardOrder();
+    expect(reloaded.first, 'shift_history');
+    expect(reloaded[1], 'kpis');
+    expect(reloaded[2], 'finance_breakdown');
+    // Self-heals remaining missing defaults
+    expect(reloaded.length, defaults.length);
+  });
 }

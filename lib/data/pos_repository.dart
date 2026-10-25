@@ -1607,15 +1607,37 @@ class PosRepository {
       return r2((r['total'] as num?) ?? 0);
     }
 
+    int countModule(String table) {
+      final r = _db.select(
+        '''SELECT COUNT(*) AS cnt
+           FROM $table t
+           WHERE COALESCE((SELECT business_date FROM shifts WHERE id = t.shift_id), t.date) BETWEEN ? AND ?''',
+        [from, to],
+      ).first;
+      return (r['cnt'] as int?) ?? 0;
+    }
+
     final revenue = r2((salesRow['revenue'] as num?) ?? 0);
     final orders = (salesRow['orders'] as int?) ?? 0;
     final cogs = r2((cogsRow['cogs'] as num?) ?? 0);
     final grossProfit = r2(revenue - cogs);
 
-    final expenses = isModuleEnabled('expenses', disabled) ? sumModule('expenses') : 0.0;
-    final salaries = isModuleEnabled('salary', disabled) ? sumModule('salaries') : 0.0;
-    final commissions = isModuleEnabled('commission', disabled) ? sumModule('commissions') : 0.0;
-    final ldCommissions = isModuleEnabled('ld-commission', disabled) ? sumModule('ld_commissions') : 0.0;
+    final expEnabled = isModuleEnabled('expenses', disabled);
+    final salEnabled = isModuleEnabled('salary', disabled);
+    final comEnabled = isModuleEnabled('commission', disabled);
+    final ldEnabled = isModuleEnabled('ld-commission', disabled);
+
+    final expenses = expEnabled ? sumModule('expenses') : 0.0;
+    final salaries = salEnabled ? sumModule('salaries') : 0.0;
+    final commissions = comEnabled ? sumModule('commissions') : 0.0;
+    final ldCommissions = ldEnabled ? sumModule('ld_commissions') : 0.0;
+
+    final financeSummary = {
+      'expenses': {'enabled': expEnabled, 'total': expenses, 'count': expEnabled ? countModule('expenses') : 0},
+      'salaries': {'enabled': salEnabled, 'total': salaries, 'count': salEnabled ? countModule('salaries') : 0},
+      'commissions': {'enabled': comEnabled, 'total': commissions, 'count': comEnabled ? countModule('commissions') : 0},
+      'ld_commissions': {'enabled': ldEnabled, 'total': ldCommissions, 'count': ldEnabled ? countModule('ld_commissions') : 0},
+    };
 
     final overheads = r2(expenses + salaries + commissions + ldCommissions);
     final netProfit = r2(grossProfit - overheads);
@@ -1744,7 +1766,42 @@ class PosRepository {
       'inventory_retail': inventoryRetail,
       'potential_profit': potentialProfit,
       'daily': daily,
+      'finance_summary': financeSummary,
     };
+  }
+
+  static const List<String> kDefaultDashboardCardOrder = [
+    'kpis',
+    'daily_trend',
+    'finance_breakdown',
+    'top_employees',
+    'top_products',
+    'variant_sales',
+    'stock_alerts',
+    'shift_history',
+  ];
+
+  List<String> getDashboardCardOrder() {
+    final raw = getSettings()['dashboard_card_order'];
+    if (raw == null || raw.trim().isEmpty) {
+      return List<String>.from(kDefaultDashboardCardOrder);
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        final list = decoded.map((e) => e.toString()).toList();
+        for (final card in kDefaultDashboardCardOrder) {
+          if (!list.contains(card)) list.add(card);
+        }
+        return list;
+      }
+    } catch (_) {}
+    return List<String>.from(kDefaultDashboardCardOrder);
+  }
+
+  void saveDashboardCardOrder(List<String> order) {
+    final jsonStr = jsonEncode(order);
+    setSettings({'dashboard_card_order': jsonStr});
   }
 
   Map<String, dynamic> dashboard({required String from, required String to}) {
@@ -1828,6 +1885,8 @@ class PosRepository {
 
     return {
       ...core,
+      'finance_summary': core['finance_summary'],
+      'shift_history': listShifts(limit: 30),
       'top': top,
       'top_employees': _computeTopEmployees(from, to, disabled),
       'variant_sales': variantSales,
