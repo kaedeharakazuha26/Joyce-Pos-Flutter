@@ -16,7 +16,6 @@ class AppState extends ChangeNotifier {
   List<Map<String, dynamic>> _alerts = [];
   final Set<String> _dismissedAlertIds = {};
   String _deepLinkFilter = '';
-  String _adminSubTab = 'overview';
   int _branchGeneration = 0;
 
   static const Set<String> shiftGatedTabs = {
@@ -61,7 +60,6 @@ class AppState extends ChangeNotifier {
   }
 
   String get deepLinkFilter => _deepLinkFilter;
-  String get adminSubTab => _adminSubTab;
   int get branchGeneration => _branchGeneration;
 
   ThemeMode get themeMode =>
@@ -84,11 +82,8 @@ class AppState extends ChangeNotifier {
       final user = repo.verifyPin(pin);
       _currentUser = user;
       refreshAll();
-      final disabled = repo.getDisabledMenus();
       if (user['role'] == 'admin') {
-        _activeTab = disabled.contains('admin-dashboard')
-            ? 'dashboard'
-            : 'admin-dashboard';
+        _activeTab = 'dashboard';
       } else {
         final perms = (user['permissions'] as List? ?? const ['pos'])
             .map((e) => e.toString())
@@ -128,7 +123,6 @@ class AppState extends ChangeNotifier {
     final disabled = repo.getDisabledMenus();
     if (disabled.contains(tabId.toLowerCase())) return false;
     if (isAdmin) return true;
-    if (tabId == 'admin-dashboard') return false;
     final perms = (_currentUser?['permissions'] as List? ?? const [])
         .map((e) => e.toString())
         .toSet();
@@ -139,16 +133,12 @@ class AppState extends ChangeNotifier {
   bool navigateToTab(
     String tabId, {
     String filter = '',
-    String? adminSub,
   }) {
     if (shiftGatedTabs.contains(tabId) && !isShiftOpen) {
       return false;
     }
     _activeTab = tabId;
     _deepLinkFilter = filter;
-    if (adminSub != null && adminSub.isNotEmpty) {
-      _adminSubTab = adminSub;
-    }
     notifyListeners();
     return true;
   }
@@ -158,11 +148,6 @@ class AppState extends ChangeNotifier {
       _deepLinkFilter = '';
       notifyListeners();
     }
-  }
-
-  void setAdminSubTab(String subTab) {
-    _adminSubTab = subTab;
-    notifyListeners();
   }
 
   void dismissAlert(String alertId) {

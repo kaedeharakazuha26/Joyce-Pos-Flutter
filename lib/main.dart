@@ -4,7 +4,6 @@ import 'core/db/database_service.dart';
 import 'core/state/app_state.dart';
 import 'core/theme/app_theme.dart';
 import 'data/pos_repository.dart';
-import 'ui/screens/admin_dashboard_screen.dart';
 import 'ui/screens/employees_screen.dart';
 import 'ui/screens/finance_screen.dart';
 import 'ui/screens/inventory_screen.dart';
@@ -57,8 +56,6 @@ class JoycePosApp extends StatelessWidget {
 
   Widget _buildScreen(String tabId) {
     switch (tabId) {
-      case 'admin-dashboard':
-        return AdminDashboardScreen(appState: appState);
       case 'dashboard':
         return StoreOverviewScreen(appState: appState);
       case 'pos':

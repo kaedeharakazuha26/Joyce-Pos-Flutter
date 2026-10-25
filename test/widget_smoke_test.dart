@@ -28,7 +28,17 @@ void main() {
     expect(appState.currentUser?['role'], 'admin');
     await tester.pump();
 
-    expect(find.textContaining('Admin Dashboard'), findsWidgets);
+    expect(find.textContaining('Store Overview'), findsWidgets);
+    expect(find.textContaining('Admin Dashboard'), findsNothing);
+
+    // Verify pinned Admin Lock button exists and locks back to PinLockScreen
+    final lockBtn = find.byTooltip('Lock Terminal (Admin Lock)');
+    expect(lockBtn, findsOneWidget);
+    await tester.tap(lockBtn);
+    await tester.pump();
+
+    expect(appState.isLoggedIn, false);
+    expect(find.textContaining('Enter your Cashier or Administrator PIN'), findsOneWidget);
 
     dbService.close();
     tempDir.deleteSync(recursive: true);

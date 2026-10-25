@@ -31,13 +31,13 @@ void main() {
     final err = appState.loginWithPin('0000');
     expect(err, isNull);
     expect(appState.currentUser?['role'], 'admin');
-    expect(appState.activeTab, 'admin-dashboard');
+    expect(appState.activeTab, 'dashboard');
     expect(appState.isShiftOpen, false);
 
     // Navigating to shift-gated tab while closed returns false (triggers SOD modal)
     final allowed = appState.navigateToTab('pos');
     expect(allowed, false);
-    expect(appState.activeTab, 'admin-dashboard');
+    expect(appState.activeTab, 'dashboard');
 
     appState.openShift(openingCash: 500, notes: 'Morning float');
     expect(appState.isShiftOpen, true);

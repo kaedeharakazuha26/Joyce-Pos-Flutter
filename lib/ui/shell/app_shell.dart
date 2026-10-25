@@ -26,13 +26,6 @@ class NavItemSpec {
 const List<NavItemSpec> kNavSpecs = [
   // 1. Analytics & Control
   NavItemSpec(
-    id: 'admin-dashboard',
-    label: 'Admin Dashboard',
-    icon: Icons.analytics_outlined,
-    group: 'Analytics & Control',
-    adminOnly: true,
-  ),
-  NavItemSpec(
     id: 'dashboard',
     label: 'Store Overview',
     icon: Icons.dashboard_outlined,
@@ -144,15 +137,6 @@ class _AppShellState extends State<AppShell> {
       showSodModal(context, widget.appState);
       return;
     }
-    if (widget.appState.isAdmin &&
-        widget.appState.canAccessTab('admin-dashboard')) {
-      widget.appState.navigateToTab(
-        'admin-dashboard',
-        filter: filter,
-        adminSub: target,
-      );
-      return;
-    }
     const mapToOp = {
       'sales': 'transactions',
       'products': 'products',
@@ -161,6 +145,7 @@ class _AppShellState extends State<AppShell> {
       'commissions': 'commission',
       'ld-commissions': 'ld-commission',
       'employees': 'employees',
+      'shifts': 'dashboard',
     };
     final dest = mapToOp[target] ?? 'dashboard';
     _handleNavTap(dest, filter: filter);
@@ -659,20 +644,53 @@ class _AppShellState extends State<AppShell> {
                                       ),
                                     ),
                                     const SizedBox(width: 6),
-                                    // User Menu / Lock
-                                    OutlinedButton.icon(
-                                      onPressed: appState.logout,
-                                      icon: const Icon(Icons.lock_outline,
-                                          size: 15),
-                                      label: Text(
-                                        '${appState.currentUserName} (Lock)',
-                                        style: const TextStyle(fontSize: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: c.input,
+                                        borderRadius:
+                                            BorderRadius.circular(16),
+                                        border:
+                                            Border.all(color: c.borderSubtle),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.person_outline,
+                                              size: 14, color: c.accent),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            appState.currentUserName,
+                                            style: TextStyle(
+                                              color: c.text,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Pinned Admin Lock Button
+                          IconButton(
+                            tooltip: 'Lock Terminal (Admin Lock)',
+                            style: IconButton.styleFrom(
+                              backgroundColor: c.bad.withValues(alpha: 0.12),
+                              side: BorderSide(
+                                  color: c.bad.withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.all(8),
+                            ),
+                            icon: Icon(Icons.lock_outline,
+                                color: c.bad, size: 18),
+                            onPressed: appState.logout,
                           ),
                         ],
                       ),
