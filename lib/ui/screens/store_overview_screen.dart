@@ -41,13 +41,13 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
     });
   }
 
-  void _exportPnl() {
+  Future<void> _exportPnl() async {
     final daily = (_data['daily'] as List? ?? const []);
     if (daily.isEmpty) {
       showJoyceToast(context, 'No daily trend data to export', isError: true);
       return;
     }
-    CsvExporter.exportCsvDialog(
+    final path = await CsvExporter.exportCsvDialog(
       defaultFileName: 'store_overview_pnl_${_from}_$_to.csv',
       headers: [
         'Date',
@@ -78,6 +78,44 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
               ])
           .toList(),
     );
+    if (path != null && mounted) {
+      showJoyceToast(context, 'Exported Daily P&L CSV');
+    }
+  }
+
+  Future<void> _exportProductSales() async {
+    final report = (_data['inventory_report'] as List? ?? const []);
+    if (report.isEmpty) {
+      showJoyceToast(context, 'No product performance data to export',
+          isError: true);
+      return;
+    }
+    final path = await CsvExporter.exportCsvDialog(
+      defaultFileName: 'product_sales_${_from}_$_to.csv',
+      headers: [
+        'Product Name',
+        'Category',
+        'Stock',
+        'Price (PHP)',
+        'Cost (PHP)',
+        'Base Units Sold',
+        'Revenue (PHP)',
+      ],
+      rows: report
+          .map((r) => [
+                r['name'],
+                r['category'],
+                r['stock'],
+                r['price'],
+                r['cost'],
+                r['units_sold'],
+                r['revenue'],
+              ])
+          .toList(),
+    );
+    if (path != null && mounted) {
+      showJoyceToast(context, 'Exported Product Sales CSV');
+    }
   }
 
   Widget _cardHeader(String title, String cardId, JoyceColors c) {
@@ -553,6 +591,12 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
                 tooltip: 'Export Daily P&L CSV',
                 icon: Icon(Icons.download, color: c.accent, size: 20),
                 onPressed: _exportPnl,
+              ),
+              IconButton(
+                tooltip: 'Export Product Sales CSV',
+                icon: Icon(Icons.table_chart_outlined,
+                    color: c.accent, size: 20),
+                onPressed: _exportProductSales,
               ),
               IconButton(
                 tooltip: 'Reset Card Layout',

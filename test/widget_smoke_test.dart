@@ -68,6 +68,10 @@ void main() {
     // Verify ReorderableListView is present
     expect(find.byType(ReorderableListView), findsOneWidget);
 
+    // Verify CSV export actions for both Daily P&L and Product Sales
+    expect(find.byTooltip('Export Daily P&L CSV'), findsOneWidget);
+    expect(find.byTooltip('Export Product Sales CSV'), findsOneWidget);
+
     final dashData = repo.dashboard(from: '2026-10-01', to: '2026-10-31');
     expect((dashData['top_employees'] as List).isNotEmpty, isTrue);
 

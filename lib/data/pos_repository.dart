@@ -1799,7 +1799,11 @@ class PosRepository {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
-        final list = decoded.map((e) => e.toString()).toList();
+        final list = decoded
+            .map((e) => e.toString())
+            .where(kDefaultDashboardCardOrder.contains)
+            .toSet()
+            .toList();
         for (final card in kDefaultDashboardCardOrder) {
           if (!list.contains(card)) list.add(card);
         }
