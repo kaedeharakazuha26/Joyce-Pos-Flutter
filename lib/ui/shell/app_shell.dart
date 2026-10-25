@@ -392,25 +392,31 @@ class _AppShellState extends State<AppShell> {
                       ),
                     ),
                     // Collapse toggle
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: c.borderSubtle)),
-                      ),
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(
-                          collapsed
-                              ? Icons.keyboard_double_arrow_right
-                              : Icons.keyboard_double_arrow_left,
-                          color: c.muted,
+                    Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border:
+                              Border(top: BorderSide(color: c.borderSubtle)),
                         ),
-                        title: collapsed
-                            ? null
-                            : Text(
-                                'Collapse Sidebar',
-                                style: TextStyle(color: c.muted, fontSize: 12),
-                              ),
-                        onTap: appState.toggleSidebar,
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(
+                            collapsed
+                                ? Icons.keyboard_double_arrow_right
+                                : Icons.keyboard_double_arrow_left,
+                            color: c.muted,
+                          ),
+                          title: collapsed
+                              ? null
+                              : Text(
+                                  'Collapse Sidebar',
+                                  overflow: TextOverflow.ellipsis,
+                                  style:
+                                      TextStyle(color: c.muted, fontSize: 12),
+                                ),
+                          onTap: appState.toggleSidebar,
+                        ),
                       ),
                     ),
                   ],
@@ -433,222 +439,239 @@ class _AppShellState extends State<AppShell> {
                       child: Row(
                         children: [
                           // Global Search Button (Ctrl+K)
-                          InkWell(
-                            onTap: _openGlobalSearchDialog,
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              width: 280,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: c.input,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: c.borderSubtle),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.search, size: 17, color: c.muted),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Search products, sales, expenses...',
-                                      style: TextStyle(
-                                        color: c.muted,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: c.cardSolid,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: c.borderSubtle),
-                                    ),
-                                    child: Text(
-                                      'Ctrl+K',
-                                      style: TextStyle(
-                                        color: c.muted,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          // Shift Status / SOD / EOD Button
-                          InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () {
-                              if (appState.isShiftOpen) {
-                                showEodModal(context, appState);
-                              } else {
-                                showSodModal(context, appState);
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: appState.isShiftOpen
-                                    ? c.ok.withValues(alpha: 0.14)
-                                    : c.warn.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: appState.isShiftOpen ? c.ok : c.warn,
+                          Flexible(
+                            child: InkWell(
+                              onTap: _openGlobalSearchDialog,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 260),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    appState.isShiftOpen
-                                        ? Icons.check_circle
-                                        : Icons.warning_amber_rounded,
-                                    size: 15,
-                                    color:
-                                        appState.isShiftOpen ? c.ok : c.warn,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    appState.isShiftOpen
-                                        ? 'Shift Open (${appState.activeShift?['business_date']}) • End Day'
-                                        : 'Shift Closed • Start Day (SOD)',
-                                    style: TextStyle(
-                                      color: c.text,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                decoration: BoxDecoration(
+                                  color: c.input,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: c.borderSubtle),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.search,
+                                        size: 17, color: c.muted),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        'Search (Ctrl+K)...',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: c.muted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
-                          // Branch Switcher
-                          OutlinedButton.icon(
-                            onPressed: _openBranchModal,
-                            icon: Icon(
-                              Icons.storefront_outlined,
-                              size: 16,
-                              color: c.accent,
-                            ),
-                            label: Text(
-                              appState.activeBranchName,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Alerts Bell
-                          PopupMenuButton<Map<String, dynamic>>(
-                            tooltip: 'Alerts & Notifications',
-                            icon: Badge(
-                              isLabelVisible: appState.activeAlerts.isNotEmpty,
-                              label: Text('${appState.activeAlerts.length}'),
-                              child: Icon(
-                                Icons.notifications_outlined,
-                                color: c.text,
-                              ),
-                            ),
-                            onSelected: _handleAlertClick,
-                            itemBuilder: (ctx) {
-                              final list = appState.activeAlerts;
-                              if (list.isEmpty) {
-                                return [
-                                  const PopupMenuItem(
-                                    enabled: false,
-                                    child: Text('No active alerts'),
-                                  ),
-                                ];
-                              }
-                              return list.map((a) {
-                                final sev = a['severity'] ?? 'info';
-                                final sevColor = sev == 'bad'
-                                    ? c.bad
-                                    : (sev == 'warn' ? c.warn : c.info);
-                                return PopupMenuItem<Map<String, dynamic>>(
-                                  value: a,
-                                  child: SizedBox(
-                                    width: 300,
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Icon(
-                                          Icons.circle,
-                                          size: 10,
-                                          color: sevColor,
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Shift Status / SOD / EOD Button
+                                    InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () {
+                                        if (appState.isShiftOpen) {
+                                          showEodModal(context, appState);
+                                        } else {
+                                          showSodModal(context, appState);
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                (a['title'] ?? '').toString(),
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                              Text(
-                                                (a['description'] ?? '')
-                                                    .toString(),
-                                                style: TextStyle(
-                                                  color: c.muted,
-                                                  fontSize: 11,
-                                                ),
-                                              ),
-                                            ],
+                                        decoration: BoxDecoration(
+                                          color: appState.isShiftOpen
+                                              ? c.ok.withValues(alpha: 0.14)
+                                              : c.warn.withValues(alpha: 0.14),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: appState.isShiftOpen
+                                                ? c.ok
+                                                : c.warn,
                                           ),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.close,
-                                            size: 14,
-                                          ),
-                                          onPressed: () {
-                                            appState.dismissAlert(
-                                              a['id'].toString(),
-                                            );
-                                            Navigator.of(ctx).pop();
-                                          },
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              appState.isShiftOpen
+                                                  ? Icons.check_circle
+                                                  : Icons.warning_amber_rounded,
+                                              size: 15,
+                                              color: appState.isShiftOpen
+                                                  ? c.ok
+                                                  : c.warn,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              appState.isShiftOpen
+                                                  ? 'Shift Open (${appState.activeShift?['business_date']}) • End Day'
+                                                  : 'Shift Closed • Start Day (SOD)',
+                                              style: TextStyle(
+                                                color: c.text,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }).toList();
-                            },
-                          ),
-                          // Theme Toggle
-                          IconButton(
-                            tooltip: 'Switch Theme',
-                            onPressed: appState.toggleTheme,
-                            icon: Icon(
-                              appState.themeMode == ThemeMode.dark
-                                  ? Icons.light_mode_outlined
-                                  : Icons.dark_mode_outlined,
-                              color: c.accent,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          // User Menu / Lock
-                          OutlinedButton.icon(
-                            onPressed: appState.logout,
-                            icon: const Icon(Icons.lock_outline, size: 15),
-                            label: Text(
-                              '${appState.currentUserName} (Lock)',
-                              style: const TextStyle(fontSize: 12),
+                                    const SizedBox(width: 12),
+                                    // Branch Switcher
+                                    OutlinedButton.icon(
+                                      onPressed: _openBranchModal,
+                                      icon: Icon(
+                                        Icons.storefront_outlined,
+                                        size: 16,
+                                        color: c.accent,
+                                      ),
+                                      label: Text(
+                                        appState.activeBranchName,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // Alerts Bell
+                                    PopupMenuButton<Map<String, dynamic>>(
+                                      tooltip: 'Alerts & Notifications',
+                                      icon: Badge(
+                                        isLabelVisible:
+                                            appState.activeAlerts.isNotEmpty,
+                                        label: Text(
+                                            '${appState.activeAlerts.length}'),
+                                        child: Icon(
+                                          Icons.notifications_outlined,
+                                          color: c.text,
+                                        ),
+                                      ),
+                                      onSelected: _handleAlertClick,
+                                      itemBuilder: (ctx) {
+                                        final list = appState.activeAlerts;
+                                        if (list.isEmpty) {
+                                          return [
+                                            const PopupMenuItem(
+                                              enabled: false,
+                                              child: Text('No active alerts'),
+                                            ),
+                                          ];
+                                        }
+                                        return list.map((a) {
+                                          final sev = a['severity'] ?? 'info';
+                                          final sevColor = sev == 'bad'
+                                              ? c.bad
+                                              : (sev == 'warn'
+                                                  ? c.warn
+                                                  : c.info);
+                                          return PopupMenuItem<
+                                              Map<String, dynamic>>(
+                                            value: a,
+                                            child: SizedBox(
+                                              width: 300,
+                                              child: Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Icon(
+                                                    Icons.circle,
+                                                    size: 10,
+                                                    color: sevColor,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          (a['title'] ?? '')
+                                                              .toString(),
+                                                          style:
+                                                              const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                        Text(
+                                                          (a['description'] ??
+                                                                  '')
+                                                              .toString(),
+                                                          style: TextStyle(
+                                                            color: c.muted,
+                                                            fontSize: 11,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.close,
+                                                      size: 14,
+                                                    ),
+                                                    onPressed: () {
+                                                      appState.dismissAlert(
+                                                        a['id'].toString(),
+                                                      );
+                                                      Navigator.of(ctx).pop();
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+                                    ),
+                                    // Theme Toggle
+                                    IconButton(
+                                      tooltip: 'Switch Theme',
+                                      onPressed: appState.toggleTheme,
+                                      icon: Icon(
+                                        appState.themeMode == ThemeMode.dark
+                                            ? Icons.light_mode_outlined
+                                            : Icons.dark_mode_outlined,
+                                        color: c.accent,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // User Menu / Lock
+                                    OutlinedButton.icon(
+                                      onPressed: appState.logout,
+                                      icon: const Icon(Icons.lock_outline,
+                                          size: 15),
+                                      label: Text(
+                                        '${appState.currentUserName} (Lock)',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],

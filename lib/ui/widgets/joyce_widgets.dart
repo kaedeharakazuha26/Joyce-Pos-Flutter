@@ -69,7 +69,10 @@ class JoyceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: borderColor ?? c.borderSubtle),
       ),
-      child: child,
+      child: Material(
+        color: Colors.transparent,
+        child: child,
+      ),
     );
     if (onTap == null) return card;
     return InkWell(

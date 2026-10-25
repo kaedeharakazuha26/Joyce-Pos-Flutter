@@ -227,8 +227,10 @@ class _PinLockScreenState extends State<PinLockScreen>
                       ),
                       const SizedBox(height: 18),
                       // Mode switcher
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           ChoiceChip(
                             label: const Text('Touch Keypad'),
@@ -236,7 +238,6 @@ class _PinLockScreenState extends State<PinLockScreen>
                             onSelected: (_) =>
                                 setState(() => _keyboardMode = false),
                           ),
-                          const SizedBox(width: 8),
                           ChoiceChip(
                             label: const Text('Keyboard Input'),
                             selected: _keyboardMode,
