@@ -640,6 +640,16 @@ class PosRepository {
     }).toList();
   }
 
+  List<String> listCategories() {
+    final rows = _db.select(
+      '''SELECT DISTINCT TRIM(category) AS cat
+         FROM products
+         WHERE active = 1 AND TRIM(COALESCE(category, '')) != ''
+         ORDER BY cat COLLATE NOCASE ASC''',
+    );
+    return rows.map((r) => r['cat'] as String).toList();
+  }
+
   int saveProduct(
     Map<String, dynamic> data, {
     String actor = 'Administrator',

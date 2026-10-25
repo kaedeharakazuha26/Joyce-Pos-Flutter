@@ -67,7 +67,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void _openProductModal([Map<String, dynamic>? existing]) {
     final nameCtrl = TextEditingController(text: existing?['name']?.toString() ?? '');
     final barcodeCtrl = TextEditingController(text: existing?['barcode']?.toString() ?? '');
-    final catCtrl = TextEditingController(text: existing?['category']?.toString() ?? '');
+    final existingCat = (existing?['category']?.toString() ?? '').trim();
+
+    final categoriesSet = <String>{};
+    try {
+      for (final cat in widget.appState.repo.listCategories()) {
+        final name = cat.trim();
+        if (name.isNotEmpty) categoriesSet.add(name);
+      }
+    } catch (_) {}
+    for (final p in _products) {
+      final name = (p['category'] ?? '').toString().trim();
+      if (name.isNotEmpty) categoriesSet.add(name);
+    }
+    if (existingCat.isNotEmpty) {
+      categoriesSet.add(existingCat);
+    }
+    final categoryList = categoriesSet.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    bool isAddingNewCategory = categoryList.isEmpty;
+    String? selectedCategory = existingCat.isNotEmpty
+        ? existingCat
+        : (categoryList.isNotEmpty ? categoryList.first : null);
+    final newCatCtrl = TextEditingController();
+
     final priceCtrl = TextEditingController(
       text: existing != null ? (existing['price'] as num).toStringAsFixed(2) : '0',
     );
@@ -124,15 +148,55 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: TextField(
-                            controller: catCtrl,
+                          child: DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            initialValue: isAddingNewCategory ? '__NEW__' : selectedCategory,
                             decoration: const InputDecoration(
-                              labelText: 'Category',
+                              labelText: 'Category *',
                             ),
+                            items: [
+                              for (final cat in categoryList)
+                                DropdownMenuItem(
+                                  value: cat,
+                                  child: Text(cat, overflow: TextOverflow.ellipsis),
+                                ),
+                              DropdownMenuItem(
+                                value: '__NEW__',
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.add_circle_outline, size: 15, color: c.accent),
+                                    const SizedBox(width: 6),
+                                    Text('+ Add New...', style: TextStyle(color: c.accent, fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              setModalState(() {
+                                if (val == '__NEW__') {
+                                  isAddingNewCategory = true;
+                                } else {
+                                  isAddingNewCategory = false;
+                                  selectedCategory = val;
+                                }
+                              });
+                            },
                           ),
                         ),
                       ],
                     ),
+                    if (isAddingNewCategory) ...[
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: newCatCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'New Category Name *',
+                          hintText: 'Enter new category name',
+                          prefixIcon: Icon(Icons.new_label_outlined, size: 16),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -270,11 +334,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Pack Variants (Multi-unit pricing)',
-                          style: TextStyle(
-                            color: c.text,
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            'Pack Variants (Multi-unit pricing)',
+                            style: TextStyle(
+                              color: c.text,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         TextButton.icon(
@@ -350,13 +416,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 label: 'Save Product',
                 icon: Icons.check,
                 onPressed: () {
+                  final finalCategory = isAddingNewCategory
+                      ? newCatCtrl.text.trim()
+                      : (selectedCategory ?? '').trim();
+                  if (finalCategory.isEmpty) {
+                    showJoyceToast(context, 'Category is required',
+                        isError: true);
+                    return;
+                  }
                   try {
                     widget.appState.repo.saveProduct(
                       {
                         'id': existing?['id'],
                         'name': nameCtrl.text,
                         'barcode': barcodeCtrl.text,
-                        'category': catCtrl.text,
+                        'category': finalCategory,
                         'price': priceCtrl.text,
                         'cost': costCtrl.text,
                         'stock': stockCtrl.text,
