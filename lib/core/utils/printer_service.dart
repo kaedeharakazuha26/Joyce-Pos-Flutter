@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:ffi/ffi.dart';
+import 'package:win32/win32.dart';
 import 'receipt_builder.dart';
 
 class PrinterService {
@@ -61,10 +64,9 @@ class PrinterService {
     }
 
     if (conn == 'usb') {
-      // On Windows, write raw bytes to the selected printer spooler or USB device name
       final printerName = (settings['usb_vid'] ?? '').trim();
       if (Platform.isWindows) {
-        await _sendRawToWindowsSpooler(bytes, printerName);
+        _sendRawToWindowsSpooler(bytes, printerName);
         return;
       }
       throw Exception('USB printing is only supported on Windows.');
@@ -118,25 +120,57 @@ class PrinterService {
     }
   }
 
-  Future<void> _sendRawToWindowsSpooler(Uint8List bytes, String printerName) async {
-    final tempFile = File(
-      '${Directory.systemTemp.path}/joyce_print_${DateTime.now().millisecondsSinceEpoch}.bin',
-    );
-    tempFile.writeAsBytesSync(bytes);
-    try {
-      // If printerName is a network share or port path, copy /b directly; otherwise use Out-Printer
-      final textContent = String.fromCharCodes(bytes);
-      final cmd = printerName.isEmpty
-          ? 'Get-Content -Path "${tempFile.path}" -Raw | Out-Printer'
-          : 'Get-Content -Path "${tempFile.path}" -Raw | Out-Printer -Name "${printerName.replaceAll('"', '')}"';
-      final res = await Process.run('powershell', ['-NoProfile', '-Command', cmd]);
-      if (res.exitCode != 0 && textContent.isNotEmpty) {
-        throw Exception('Windows spooler error: ${res.stderr}');
-      }
-    } finally {
-      if (tempFile.existsSync()) {
-        tempFile.deleteSync();
-      }
+  void _sendRawToWindowsSpooler(Uint8List bytes, String printerName) {
+    if (printerName.isEmpty) {
+      throw Exception(
+        'Please specify the Windows Printer Name in Settings > Printer.',
+      );
     }
+    using((arena) {
+      final pPrinterName = printerName.toNativeUtf16(allocator: arena);
+      final phPrinter = arena<HANDLE>();
+
+      final opened = OpenPrinter(pPrinterName, phPrinter, nullptr);
+      if (opened == 0) {
+        throw Exception('Failed to open Windows printer "$printerName"');
+      }
+      final hPrinter = phPrinter.value;
+      try {
+        final docInfo = arena<DOC_INFO_1>()
+          ..ref.pDocName = 'JOYCE POS Receipt'.toNativeUtf16(allocator: arena)
+          ..ref.pOutputFile = nullptr
+          ..ref.pDatatype = 'RAW'.toNativeUtf16(allocator: arena);
+
+        final job = StartDocPrinter(hPrinter, 1, docInfo.cast());
+        if (job == 0) {
+          throw Exception('StartDocPrinter (RAW) failed for "$printerName"');
+        }
+        try {
+          if (StartPagePrinter(hPrinter) == 0) {
+            throw Exception('StartPagePrinter failed for "$printerName"');
+          }
+          try {
+            final pBytes = arena<Uint8>(bytes.length);
+            pBytes.asTypedList(bytes.length).setAll(0, bytes);
+            final pcWritten = arena<DWORD>();
+            final ok = WritePrinter(
+              hPrinter,
+              pBytes.cast(),
+              bytes.length,
+              pcWritten,
+            );
+            if (ok == 0 || pcWritten.value != bytes.length) {
+              throw Exception('WritePrinter failed for "$printerName"');
+            }
+          } finally {
+            EndPagePrinter(hPrinter);
+          }
+        } finally {
+          EndDocPrinter(hPrinter);
+        }
+      } finally {
+        ClosePrinter(hPrinter);
+      }
+    });
   }
 }

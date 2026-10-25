@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:joyce_pos_flutter/core/utils/printer_service.dart';
 import 'package:joyce_pos_flutter/core/utils/receipt_builder.dart';
 
 void main() {
@@ -77,5 +79,18 @@ void main() {
     expect(zText.contains('Salaries Paid'), false);
     expect(zText.contains('Store Expenses'), true);
     expect(zText.contains('0.00 (Balanced)'), true);
+  });
+
+  test('PrinterService USB mode uses Win32 RAW spooler OpenPrinter and reports invalid printer', () async {
+    final svc = PrinterService();
+    await expectLater(
+      () => svc.sendBytes(
+        Uint8List.fromList([0x1B, 0x40]),
+        {'printer_conn': 'usb', 'usb_vid': 'NON_EXISTENT_PRINTER_XYZ_999'},
+      ),
+      throwsA(
+        predicate((e) => e.toString().contains('Failed to open Windows printer')),
+      ),
+    );
   });
 }
