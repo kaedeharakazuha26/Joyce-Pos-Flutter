@@ -86,8 +86,8 @@ void main() {
     expect(financeFinder, findsOneWidget);
     expect(find.textContaining('Store Expenses'), findsWidgets);
 
-    // Scroll to Top Employee Earners
-    final topEarnersFinder = find.textContaining('Top Employee Earners');
+    // Scroll to Top Performer Employee
+    final topEarnersFinder = find.textContaining('Top Performer Employee');
     await tester.scrollUntilVisible(
       topEarnersFinder,
       100,
@@ -95,7 +95,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Verify Top Employee Earners card displays Maria Santos
+    // Verify Top Performer Employee card displays Maria Santos
     expect(topEarnersFinder, findsOneWidget);
     expect(find.textContaining('Maria Santos'), findsOneWidget);
 

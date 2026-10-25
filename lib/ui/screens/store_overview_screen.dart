@@ -23,6 +23,10 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
   String _preset = 'this_month';
   late Map<String, dynamic> _data;
   late List<String> _cardOrder;
+  int _topPage = 1;
+  int _variantPage = 1;
+  int _stockPage = 1;
+  static const int _cardPageSize = 5;
 
   @override
   void initState() {
@@ -38,6 +42,9 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
   void _reload() {
     setState(() {
       _data = widget.appState.repo.dashboard(from: _from, to: _to);
+      _topPage = 1;
+      _variantPage = 1;
+      _stockPage = 1;
     });
   }
 
@@ -333,57 +340,72 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
 
   Widget _buildTopEmployeesCard(
       JoyceColors c, List<Map<String, dynamic>> topEmployees) {
-    if (topEmployees.isEmpty) return const SizedBox.shrink();
+    final repo = widget.appState.repo;
+    final disabled = repo.getDisabledMenus();
+    final anyCompensationEnabled = repo.isModuleEnabled('salary', disabled) ||
+        repo.isModuleEnabled('commission', disabled) ||
+        repo.isModuleEnabled('ld-commission', disabled);
+    if (!anyCompensationEnabled) return const SizedBox.shrink();
 
     return JoyceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardHeader(
-              'Top Employee Earners (Combined Salary & Commissions)',
+              'Top Performer Employee (Combined Salary & Commissions)',
               'top_employees',
               c),
           const SizedBox(height: 12),
-          for (final emp in topEmployees)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                radius: 16,
-                backgroundColor: c.accent.withValues(alpha: 0.15),
-                child: Text(
-                  (emp['employee']?.toString().isNotEmpty ?? false)
-                      ? emp['employee'].toString().substring(0, 1).toUpperCase()
-                      : 'E',
+          if (topEmployees.isEmpty)
+            const EmptyState(
+              icon: Icons.emoji_events_outlined,
+              title: 'No employee payouts recorded yet',
+              subtitle:
+                  'Employee salaries and commissions will appear here ranked by total payout',
+            )
+          else
+            for (final emp in topEmployees)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: c.accent.withValues(alpha: 0.15),
+                  child: Text(
+                    (emp['employee']?.toString().isNotEmpty ?? false)
+                        ? emp['employee'].toString().substring(0, 1).toUpperCase()
+                        : 'E',
+                    style: TextStyle(
+                        color: c.accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13),
+                  ),
+                ),
+                title: Text(
+                  emp['employee'].toString(),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  'Salary: ${formatPeso(emp['salary'] as num)} • Comm: ${formatPeso(emp['commission'] as num)} • LD: ${formatPeso(emp['ld_commission'] as num)}',
+                  style: TextStyle(color: c.muted, fontSize: 11),
+                ),
+                trailing: Text(
+                  formatPeso(emp['total'] as num),
                   style: TextStyle(
-                      color: c.accent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13),
+                    color: c.accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
                 ),
               ),
-              title: Text(
-                emp['employee'].toString(),
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(
-                'Salary: ${formatPeso(emp['salary'] as num)} • Comm: ${formatPeso(emp['commission'] as num)} • LD: ${formatPeso(emp['ld_commission'] as num)}',
-                style: TextStyle(color: c.muted, fontSize: 11),
-              ),
-              trailing: Text(
-                formatPeso(emp['total'] as num),
-                style: TextStyle(
-                  color: c.accent,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
   Widget _buildTopProductsCard(JoyceColors c, List top) {
+    final paged =
+        top.skip((_topPage - 1) * _cardPageSize).take(_cardPageSize).toList();
     return JoyceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,8 +414,8 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
           const SizedBox(height: 10),
           if (top.isEmpty)
             const EmptyState(title: 'No sales recorded yet')
-          else
-            for (final p in top)
+          else ...[
+            for (final p in paged)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
@@ -412,12 +434,23 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
                   ),
                 ),
               ),
+            PaginationBar(
+              currentPage: _topPage,
+              totalItems: top.length,
+              pageSize: _cardPageSize,
+              onPageChanged: (p) => setState(() => _topPage = p),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildVariantSalesCard(JoyceColors c, List variantSales) {
+    final paged = variantSales
+        .skip((_variantPage - 1) * _cardPageSize)
+        .take(_cardPageSize)
+        .toList();
     return JoyceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,8 +459,8 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
           const SizedBox(height: 10),
           if (variantSales.isEmpty)
             const EmptyState(title: 'No variant sales in period')
-          else
-            for (final v in variantSales.take(15))
+          else ...[
+            for (final v in paged)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
@@ -446,12 +479,23 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
                   ),
                 ),
               ),
+            PaginationBar(
+              currentPage: _variantPage,
+              totalItems: variantSales.length,
+              pageSize: _cardPageSize,
+              onPageChanged: (p) => setState(() => _variantPage = p),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildStockAlertsCard(JoyceColors c, List lowStock) {
+    final paged = lowStock
+        .skip((_stockPage - 1) * _cardPageSize)
+        .take(_cardPageSize)
+        .toList();
     return JoyceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,8 +508,8 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
               icon: Icons.check_circle_outline,
               title: 'All active products have healthy stock',
             )
-          else
-            for (final item in lowStock)
+          else ...[
+            for (final item in paged)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
@@ -484,6 +528,13 @@ class _StoreOverviewScreenState extends State<StoreOverviewScreen> {
                   ),
                 ),
               ),
+            PaginationBar(
+              currentPage: _stockPage,
+              totalItems: lowStock.length,
+              pageSize: _cardPageSize,
+              onPageChanged: (p) => setState(() => _stockPage = p),
+            ),
+          ],
         ],
       ),
     );

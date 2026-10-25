@@ -1183,6 +1183,19 @@ class PosRepository {
 
   // --- Finance (Expenses, Salaries, Commissions, LD Commissions) ---
 
+  List<String> listExpenseCategories() {
+    final rows = _db.select(
+      'SELECT DISTINCT category FROM expenses WHERE category IS NOT NULL AND TRIM(category) != "" ORDER BY category COLLATE NOCASE ASC',
+    );
+    final list = rows.map((r) => (r['category'] as String).trim()).toList();
+    const defaults = ['General', 'Utilities', 'Supplies', 'Maintenance', 'Rent', 'Food & Drink', 'Miscellaneous'];
+    for (final d in defaults) {
+      if (!list.contains(d)) list.add(d);
+    }
+    list.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return list;
+  }
+
   List<Map<String, dynamic>> listExpenses({required String from, required String to}) {
     final rows = _db.select(
       '''SELECT e.*,
@@ -1833,8 +1846,7 @@ class PosRepository {
          WHERE s.status = 'completed'
            AND COALESCE((SELECT business_date FROM shifts WHERE id = s.shift_id), date(s.created_at)) BETWEEN ? AND ?
          GROUP BY si.product_id, si.name
-         ORDER BY revenue DESC
-         LIMIT 8''',
+         ORDER BY revenue DESC''',
       [from, to],
     );
 
@@ -1880,8 +1892,7 @@ class PosRepository {
       '''SELECT id, name, category, stock, low_stock, price, cost
          FROM products
          WHERE active = 1 AND stock <= low_stock
-         ORDER BY stock ASC, name COLLATE NOCASE ASC
-         LIMIT 10''',
+         ORDER BY stock ASC, name COLLATE NOCASE ASC''',
     ).map((r) => Map<String, dynamic>.from(r)).toList();
 
     final inventoryReport = _db.select(
