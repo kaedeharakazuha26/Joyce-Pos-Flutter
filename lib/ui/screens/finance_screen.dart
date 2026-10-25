@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/csv_exporter.dart';
+import '../../core/utils/dates.dart';
 import '../../core/utils/money.dart';
 import '../widgets/joyce_widgets.dart';
 
@@ -76,22 +77,74 @@ class _FinanceScreenState extends State<FinanceScreen> {
     });
   }
 
+  Future<String?> _promptNewItem(
+    BuildContext context, {
+    required String title,
+    required String hint,
+  }) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: hint,
+          ),
+          onSubmitted: (val) => Navigator.of(ctx).pop(val.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          JoyceButton(
+            label: 'Add',
+            icon: Icons.add,
+            onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _openEditModal([Map<String, dynamic>? existing]) {
     final repo = widget.appState.repo;
     final employees = repo.listEmployees();
-    final commTypes = repo.listCommissionTypes();
-    final bDate = repo.activeBusinessDate();
+    final expenseCats = repo.listExpenseCategories();
+    final commTypes = List<String>.from(repo.listCommissionTypes());
+    if (commTypes.isEmpty) commTypes.add('Sales');
 
-    final dateCtrl = TextEditingController(
-      text: existing?['date']?.toString() ?? bDate,
-    );
+    final defaultShiftDate =
+        widget.appState.activeShift?['business_date']?.toString() ??
+            repo.activeBusinessDate();
+
+    String selectedDate = existing?['date']?.toString() ??
+        existing?['business_date']?.toString() ??
+        defaultShiftDate;
+
+    final existingCat = (existing?['category']?.toString() ?? '').trim();
+    if (existingCat.isNotEmpty && !expenseCats.contains(existingCat)) {
+      expenseCats.insert(0, existingCat);
+    }
+    String selectedExpenseCat = existingCat.isNotEmpty
+        ? existingCat
+        : (expenseCats.isNotEmpty ? expenseCats.first : 'General');
+
+    final existingType = (existing?['type']?.toString() ?? '').trim();
+    if (existingType.isNotEmpty && !commTypes.contains(existingType)) {
+      commTypes.add(existingType);
+    }
+    String selectedCommType = existingType.isNotEmpty
+        ? existingType
+        : commTypes.first;
+
     final amountCtrl = TextEditingController(
       text: existing != null
           ? ((existing['amount'] as num?) ?? 0).toStringAsFixed(2)
           : '',
-    );
-    final categoryCtrl = TextEditingController(
-      text: existing?['category']?.toString() ?? 'General',
     );
     final descCtrl = TextEditingController(
       text: existing?['description']?.toString() ?? '',
@@ -100,15 +153,8 @@ class _FinanceScreenState extends State<FinanceScreen> {
       text: (existing?['employee'] ?? existing?['employee_name'] ?? '')
           .toString(),
     );
-    final periodCtrl = TextEditingController(
-      text: existing?['period']?.toString() ?? '',
-    );
     final noteCtrl = TextEditingController(
       text: existing?['note']?.toString() ?? '',
-    );
-    final typeCtrl = TextEditingController(
-      text: existing?['type']?.toString() ??
-          (commTypes.isNotEmpty ? commTypes.first : 'Sales'),
     );
     final qtyCtrl = TextEditingController(
       text: '${existing?['quantity'] ?? 1}',
@@ -119,6 +165,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
+          final c = ctx.joyce;
           return AlertDialog(
             title: Text(
               '${existing == null ? "Add" : "Edit"} $_title Record',
@@ -177,11 +224,57 @@ class _FinanceScreenState extends State<FinanceScreen> {
                       const SizedBox(height: 12),
                     ],
                     if (widget.moduleType == FinanceModuleType.expenses) ...[
-                      TextField(
-                        controller: categoryCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Category (e.g., Utilities, Supplies, Ice)',
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: selectedExpenseCat,
+                              decoration: const InputDecoration(
+                                labelText: 'Category *',
+                              ),
+                              items: [
+                                for (final cat in expenseCats)
+                                  DropdownMenuItem(
+                                    value: cat,
+                                    child: Text(cat),
+                                  ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setModalState(() {
+                                    selectedExpenseCat = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Add new category',
+                            icon: const Icon(Icons.add_circle_outline),
+                            color: c.accent,
+                            onPressed: () async {
+                              final newCat = await _promptNewItem(
+                                context,
+                                title: 'New Expense Category',
+                                hint: 'Category name (e.g. Repairs, Rent)',
+                              );
+                              if (newCat != null && newCat.trim().isNotEmpty) {
+                                final trimmed = newCat.trim();
+                                setModalState(() {
+                                  if (!expenseCats.contains(trimmed)) {
+                                    expenseCats.add(trimmed);
+                                    expenseCats.sort((a, b) => a
+                                        .toLowerCase()
+                                        .compareTo(b.toLowerCase()));
+                                  }
+                                  selectedExpenseCat = trimmed;
+                                });
+                              }
+                            },
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -201,13 +294,6 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     if (widget.moduleType == FinanceModuleType.salary) ...[
                       const SizedBox(height: 12),
                       TextField(
-                        controller: periodCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Pay Period (e.g., Oct 1–15)',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
                         controller: noteCtrl,
                         decoration: const InputDecoration(
                           labelText: 'Note',
@@ -216,12 +302,57 @@ class _FinanceScreenState extends State<FinanceScreen> {
                     ],
                     if (widget.moduleType == FinanceModuleType.commission) ...[
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: typeCtrl,
-                        decoration: InputDecoration(
-                          labelText:
-                              'Commission Type (${commTypes.join(", ")})',
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: selectedCommType,
+                              decoration: const InputDecoration(
+                                labelText: 'Commission Type *',
+                              ),
+                              items: [
+                                for (final t in commTypes)
+                                  DropdownMenuItem(
+                                    value: t,
+                                    child: Text(t),
+                                  ),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setModalState(() {
+                                    selectedCommType = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'Add new commission type',
+                            icon: const Icon(Icons.add_circle_outline),
+                            color: c.accent,
+                            onPressed: () async {
+                              final newType = await _promptNewItem(
+                                context,
+                                title: 'New Commission Type',
+                                hint:
+                                    'Commission type name (e.g. Referral, Bonus)',
+                              );
+                              if (newType != null &&
+                                  newType.trim().isNotEmpty) {
+                                final trimmed = newType.trim();
+                                repo.addCommissionType(trimmed);
+                                setModalState(() {
+                                  if (!commTypes.contains(trimmed)) {
+                                    commTypes.add(trimmed);
+                                  }
+                                  selectedCommType = trimmed;
+                                });
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ],
                     if (widget.moduleType ==
@@ -252,10 +383,35 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: TextField(
-                            controller: dateCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Date (YYYY-MM-DD)',
+                          child: InkWell(
+                            onTap: () async {
+                              final cur = parseLocalDate(selectedDate);
+                              final picked = await showDatePicker(
+                                context: ctx,
+                                initialDate: cur,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                              );
+                              if (picked != null) {
+                                setModalState(() {
+                                  selectedDate = formatDate(picked);
+                                });
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Date *',
+                                suffixIcon:
+                                    Icon(Icons.calendar_today, size: 18),
+                              ),
+                              child: Text(
+                                selectedDate,
+                                style: TextStyle(
+                                  color: c.text,
+                                  fontSize: 14,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -282,10 +438,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                         repo.saveExpense(
                           {
                             'id': existing?['id'],
-                            'category': categoryCtrl.text,
+                            'category': selectedExpenseCat,
                             'description': descCtrl.text,
                             'amount': amountCtrl.text,
-                            'date': dateCtrl.text,
+                            'date': selectedDate,
                           },
                           actor: actor,
                           role: role,
@@ -296,10 +452,10 @@ class _FinanceScreenState extends State<FinanceScreen> {
                           {
                             'id': existing?['id'],
                             'employee': empCtrl.text,
-                            'period': periodCtrl.text,
+                            'period': '',
                             'note': noteCtrl.text,
                             'amount': amountCtrl.text,
-                            'date': dateCtrl.text,
+                            'date': selectedDate,
                           },
                           actor: actor,
                           role: role,
@@ -311,9 +467,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             'id': existing?['id'],
                             'employee_id': selectedEmpId,
                             'employee_name': empCtrl.text,
-                            'type': typeCtrl.text,
+                            'type': selectedCommType,
                             'amount': amountCtrl.text,
-                            'date': dateCtrl.text,
+                            'date': selectedDate,
                           },
                           actor: actor,
                           role: role,
@@ -327,7 +483,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                             'employee_name': empCtrl.text,
                             'quantity': qtyCtrl.text,
                             'amount': amountCtrl.text,
-                            'date': dateCtrl.text,
+                            'date': selectedDate,
                           },
                           actor: actor,
                           role: role,
@@ -426,7 +582,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                 r['employee_name'] ??
                                 '',
                             r['description'] ??
-                                r['period'] ??
+                                r['note'] ??
                                 r['type'] ??
                                 'Qty: ${r['quantity'] ?? 1}',
                             r['amount'],
@@ -485,8 +641,9 @@ class _FinanceScreenState extends State<FinanceScreen> {
                                 break;
                               case FinanceModuleType.salary:
                                 titleText = '${r['employee']}';
+                                final note = (r['note']?.toString() ?? '').trim();
                                 subText =
-                                    '${r['business_date']} • Period: ${(r['period'] as String).isEmpty ? "—" : r['period']} • ${r['note']}';
+                                    '${r['business_date']}${note.isNotEmpty ? " • $note" : ""}';
                                 break;
                               case FinanceModuleType.commission:
                                 titleText =
