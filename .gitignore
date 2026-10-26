@@ -49,3 +49,9 @@ app.*.map.json
 
 # Superpowers scratch
 .superpowers/
+
+# Windows Release distribution in root
+/joyce_pos_flutter.exe
+/flutter_windows.dll
+/data/
+/Joyce-POS-Release/
