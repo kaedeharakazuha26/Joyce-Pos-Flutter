@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/barcode_scanner_service.dart';
 import '../../core/utils/money.dart';
 import '../widgets/joyce_widgets.dart';
 import 'sod_eod_modals.dart';
@@ -112,11 +113,28 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  final FocusNode _shortcutFocus = FocusNode();
+  void Function()? _unsubGlobalScanner;
+
+  @override
+  void initState() {
+    super.initState();
+    BarcodeScannerService.instance.init();
+    _unsubGlobalScanner = BarcodeScannerService.instance.subscribe((barcode) {
+      if (!mounted) return;
+      if (widget.appState.activeTab != 'pos' && widget.appState.activeTab != 'products') {
+        if (widget.appState.isShiftOpen) {
+          widget.appState.navigateToTab('pos');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            BarcodeScannerService.instance.dispatch(barcode);
+          });
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
-    _shortcutFocus.dispose();
+    _unsubGlobalScanner?.call();
     super.dispose();
   }
 
@@ -260,10 +278,7 @@ class _AppShellState extends State<AppShell> {
         const SingleActivator(LogicalKeyboardKey.keyK, control: true):
             _openGlobalSearchDialog,
       },
-      child: Focus(
-        focusNode: _shortcutFocus,
-        autofocus: true,
-        child: Scaffold(
+      child: Scaffold(
           backgroundColor: c.bg,
           body: Row(
             children: [
@@ -713,10 +728,9 @@ class _AppShellState extends State<AppShell> {
             ],
           ),
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
 class _SidebarNavTile extends StatelessWidget {
   final NavItemSpec spec;

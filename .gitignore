@@ -56,3 +56,4 @@ app.*.map.json
 /data/
 /Joyce-POS-Release/
 *.zip
+native_assets.json

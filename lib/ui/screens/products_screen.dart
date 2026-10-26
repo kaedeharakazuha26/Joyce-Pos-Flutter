@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/barcode_scanner_service.dart';
 import '../../core/utils/csv_exporter.dart';
 import '../../core/utils/money.dart';
 import '../../data/pos_repository.dart';
@@ -23,6 +24,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String _stockFilter = 'all'; // 'all' | 'low_stock' | 'out_of_stock'
   List<Map<String, dynamic>> _products = [];
   int _page = 1;
+  void Function()? _unsubScanner;
 
   @override
   void initState() {
@@ -33,10 +35,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
       widget.appState.clearDeepLinkFilter();
     }
     _reload();
+    _unsubScanner = BarcodeScannerService.instance.subscribe((barcode) {
+      if (!mounted) return;
+      setState(() {
+        _searchCtrl.text = barcode;
+        _page = 1;
+      });
+    });
   }
 
   @override
   void dispose() {
+    _unsubScanner?.call();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -121,10 +131,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
 
+    VoidCallback? unsubModal;
     showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
+          unsubModal ??= BarcodeScannerService.instance.subscribe((barcode) {
+            setModalState(() {
+              barcodeCtrl.text = barcode;
+            });
+            if (nameCtrl.text.endsWith(barcode)) {
+              nameCtrl.text =
+                  nameCtrl.text.replaceAll(barcode, '').trim();
+            }
+          });
           final c = ctx.joyce;
           return AlertDialog(
             title: Text(existing == null ? 'Add Product' : 'Edit Product'),
@@ -205,6 +225,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             controller: barcodeCtrl,
                             decoration: const InputDecoration(
                               labelText: 'Barcode',
+                              prefixIcon: Icon(Icons.qr_code_scanner, size: 18),
+                              helperText: 'Scan with barcode scanner or click Generate',
                             ),
                           ),
                         ),
@@ -464,7 +486,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
           );
         },
       ),
-    );
+    ).then((_) {
+      unsubModal?.call();
+    });
   }
 
   void _confirmArchive(Map<String, dynamic> prod) {
@@ -539,9 +563,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
         TextField(
           controller: _searchCtrl,
           onChanged: (_) => setState(() => _page = 1),
-          decoration: const InputDecoration(
+          onSubmitted: (_) => setState(() => _page = 1),
+          decoration: InputDecoration(
             hintText: 'Search by product name, category, or barcode...',
-            prefixIcon: Icon(Icons.search, size: 18),
+            prefixIcon: const Icon(Icons.qr_code_scanner, size: 18),
+            suffixIcon: _searchCtrl.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _page = 1);
+                    },
+                  )
+                : null,
           ),
         ),
         const SizedBox(height: 14),
@@ -549,9 +583,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
           child: JoyceCard(
             padding: const EdgeInsets.all(12),
             child: paged.isEmpty
-                ? const EmptyState(
-                    icon: Icons.inventory_2_outlined,
-                    title: 'No products match your filter',
+                ? EmptyState(
+                    icon: _searchCtrl.text.isNotEmpty
+                        ? Icons.qr_code_scanner
+                        : Icons.inventory_2_outlined,
+                    title: _searchCtrl.text.isNotEmpty
+                        ? 'No products match "${_searchCtrl.text}"'
+                        : 'No products match your filter',
+                    subtitle: _searchCtrl.text.isNotEmpty
+                        ? 'Would you like to register a new product with this barcode?'
+                        : null,
+                    action: _searchCtrl.text.isNotEmpty
+                        ? JoyceButton(
+                            label: 'Add Product with Barcode',
+                            icon: Icons.add,
+                            onPressed: () => _openProductModal(
+                              {'barcode': _searchCtrl.text.trim()},
+                            ),
+                          )
+                        : null,
                   )
                 : Column(
                     children: [

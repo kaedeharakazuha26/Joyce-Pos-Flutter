@@ -417,12 +417,14 @@ class EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
+  final Widget? action;
 
   const EmptyState({
     super.key,
     this.icon = Icons.inbox_outlined,
     required this.title,
     this.subtitle,
+    this.action,
   });
 
   @override
@@ -451,6 +453,10 @@ class EmptyState extends StatelessWidget {
                 style: TextStyle(color: c.muted, fontSize: 12),
                 textAlign: TextAlign.center,
               ),
+            ],
+            if (action != null) ...[
+              const SizedBox(height: 14),
+              action!,
             ],
           ],
         ),

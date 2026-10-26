@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/state/app_state.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/barcode_scanner_service.dart';
 import '../../core/utils/money.dart';
 import '../../core/utils/receipt_builder.dart';
 import '../widgets/joyce_widgets.dart';
@@ -41,6 +42,7 @@ class _PosScreenState extends State<PosScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   final TextEditingController _paidCtrl = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
+  void Function()? _unsubScanner;
 
   List<Map<String, dynamic>> _products = [];
   String _selectedCategory = 'All';
@@ -50,10 +52,13 @@ class _PosScreenState extends State<PosScreen> {
   void initState() {
     super.initState();
     _loadProducts();
+    _unsubScanner =
+        BarcodeScannerService.instance.subscribe(_handleBarcodeScanned);
   }
 
   @override
   void dispose() {
+    _unsubScanner?.call();
     _searchCtrl.dispose();
     _paidCtrl.dispose();
     _searchFocus.dispose();
@@ -100,19 +105,37 @@ class _PosScreenState extends State<PosScreen> {
     }).toList();
   }
 
-  void _handleSearchEnter(String rawQuery) {
-    final q = rawQuery.trim().toLowerCase();
+  void _handleBarcodeScanned(String rawBarcode, {bool isSearchSubmit = false}) {
+    final q = rawBarcode.trim().toLowerCase();
     if (q.isEmpty) return;
 
     // 1. Exact barcode match
     Map<String, dynamic>? match;
     for (final p in _products) {
-      if ((p['barcode'] as String? ?? '').trim().toLowerCase() == q) {
+      final bc = (p['barcode'] as String? ?? '').trim().toLowerCase();
+      if (bc.isNotEmpty && bc == q) {
         match = p;
         break;
       }
     }
-    // 2. Exact name match
+
+    // 2. Barcode match stripping non-alphanumeric (e.g. spaces/dashes)
+    if (match == null) {
+      final cleanQ = q.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      if (cleanQ.isNotEmpty) {
+        for (final p in _products) {
+          final bc = (p['barcode'] as String? ?? '')
+              .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+              .toLowerCase();
+          if (bc.isNotEmpty && bc == cleanQ) {
+            match = p;
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. Exact name match
     if (match == null) {
       for (final p in _products) {
         if ((p['name'] as String? ?? '').trim().toLowerCase() == q) {
@@ -121,9 +144,14 @@ class _PosScreenState extends State<PosScreen> {
         }
       }
     }
-    // 3. Sole filtered result
-    if (match == null) {
-      final filtered = _filteredProducts;
+
+    // 4. Sole filtered result if manually typed into search
+    if (match == null && isSearchSubmit) {
+      final filtered = _products.where((p) {
+        final name = (p['name'] as String? ?? '').toLowerCase();
+        final bc = (p['barcode'] as String? ?? '').toLowerCase();
+        return name.contains(q) || bc.contains(q);
+      }).toList();
       if (filtered.length == 1) {
         match = filtered.first;
       }
@@ -133,8 +161,46 @@ class _PosScreenState extends State<PosScreen> {
       _onProductTap(match);
       _searchCtrl.clear();
       setState(() {});
-      _searchFocus.requestFocus();
+      if (_searchFocus.canRequestFocus) {
+        _searchFocus.requestFocus();
+      }
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Added "${match['name']}" to cart (${formatPeso(match['price'] as num)})',
+          ),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      setState(() {
+        _searchCtrl.text = rawBarcode.trim();
+      });
+      if (_searchFocus.canRequestFocus) {
+        _searchFocus.requestFocus();
+      }
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Barcode "$rawBarcode" not found in store catalog.'),
+          action: SnackBarAction(
+            label: 'Clear',
+            onPressed: () {
+              _searchCtrl.clear();
+              setState(() {});
+            },
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
+  }
+
+  void _handleSearchEnter(String rawQuery) {
+    _handleBarcodeScanned(rawQuery, isSearchSubmit: true);
   }
 
   void _onProductTap(Map<String, dynamic> product) {
