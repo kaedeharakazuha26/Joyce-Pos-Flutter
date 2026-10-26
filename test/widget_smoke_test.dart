@@ -102,4 +102,51 @@ void main() {
     dbService.close();
     tempDir.deleteSync(recursive: true);
   });
+
+  testWidgets('Branch button at header is clickable for admin, disabled and unclickable for cashier', (tester) async {
+    tester.view.physicalSize = const Size(1366, 820);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final tempDir = Directory.systemTemp.createTempSync('joyce_branch_ui_');
+    final dbService = DatabaseService();
+    final branchMgr = BranchManager(appDataDir: tempDir.path, dbService: dbService);
+    final repo = PosRepository(dbService: dbService, branchManager: branchMgr);
+    repo.saveCashier({'name': 'Cashier Juan', 'pin': '1234'});
+    final appState = AppState(repo: repo);
+
+    // 1. Log in as Cashier Juan
+    appState.loginWithPin('1234');
+    expect(appState.isAdmin, isFalse);
+
+    await tester.pumpWidget(JoycePosApp(appState: appState));
+    await tester.pumpAndSettle();
+
+    // Verify branch button exists in header
+    final branchBtnFinder = find.widgetWithIcon(OutlinedButton, Icons.storefront_outlined);
+    expect(branchBtnFinder, findsOneWidget);
+
+    final OutlinedButton cashierBtn = tester.widget(branchBtnFinder);
+    expect(cashierBtn.onPressed, isNull); // disabled / unclickable!
+    expect(cashierBtn.enabled, isFalse);
+
+    // 2. Log in as Admin
+    appState.logout();
+    appState.loginWithPin('0000');
+    expect(appState.isAdmin, isTrue);
+
+    await tester.pump();
+
+    final OutlinedButton adminBtn = tester.widget(branchBtnFinder);
+    expect(adminBtn.onPressed, isNotNull); // enabled / clickable!
+    expect(adminBtn.enabled, isTrue);
+
+    await tester.tap(find.byIcon(Icons.storefront_outlined), warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Store Branches'), findsOneWidget);
+
+    dbService.close();
+    tempDir.deleteSync(recursive: true);
+  });
 }

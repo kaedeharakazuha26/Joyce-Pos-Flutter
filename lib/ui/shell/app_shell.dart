@@ -183,6 +183,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _openBranchModal() {
+    if (!widget.appState.isAdmin) return;
     final nameCtrl = TextEditingController();
     showDialog<void>(
       context: context,
@@ -540,17 +541,31 @@ class _AppShellState extends State<AppShell> {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    // Branch Switcher
-                                    OutlinedButton.icon(
-                                      onPressed: _openBranchModal,
-                                      icon: Icon(
-                                        Icons.storefront_outlined,
-                                        size: 16,
-                                        color: c.accent,
-                                      ),
-                                      label: Text(
-                                        appState.activeBranchName,
-                                        style: const TextStyle(fontSize: 12),
+                                    // Branch Switcher (only admin can edit/switch branch; disabled for cashier)
+                                    Tooltip(
+                                      message: appState.isAdmin
+                                          ? 'Switch or manage branches'
+                                          : 'Branch management is restricted to Administrator',
+                                      child: OutlinedButton.icon(
+                                        onPressed: appState.isAdmin
+                                            ? _openBranchModal
+                                            : null,
+                                        icon: Icon(
+                                          Icons.storefront_outlined,
+                                          size: 16,
+                                          color: appState.isAdmin
+                                              ? c.accent
+                                              : c.muted,
+                                        ),
+                                        label: Text(
+                                          appState.activeBranchName,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: appState.isAdmin
+                                                ? null
+                                                : c.muted,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
