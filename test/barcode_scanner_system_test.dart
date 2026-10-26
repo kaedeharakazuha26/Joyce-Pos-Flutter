@@ -60,7 +60,7 @@ void main() {
       repo = PosRepository(dbService: dbService, branchManager: branchMgr);
       repo.saveProduct({
         'name': 'Lucky Me Canton Calamansi',
-        'barcode': '4800016644403',
+        'barcode': '4800016644403, 4800016644410',
         'category': 'Noodles',
         'price': 20.0,
         'cost': 15.0,
@@ -101,7 +101,13 @@ void main() {
       expect(find.text('14 in stock'), findsOneWidget);
       expect(find.text('Added "Lucky Me Canton Calamansi" to cart (₱20.00)'), findsOneWidget);
 
-      // Let first snackbar animate away completely
+      // Scan 2nd barcode of the same product
+      BarcodeScannerService.instance.dispatch('4800016644410');
+      await tester.pump();
+      // Should add another unit to cart, remaining stock is now 13
+      expect(find.text('13 in stock'), findsOneWidget);
+
+      // Let snackbar animate away completely
       await tester.pumpAndSettle();
 
       // Unknown barcode scan
@@ -140,12 +146,18 @@ void main() {
 
       expect(find.byType(AlertDialog), findsOneWidget);
 
-      // Scan new barcode into Add Product modal
+      // Scan first barcode into Add Product modal
       BarcodeScannerService.instance.dispatch('748100234567');
       await tester.pump();
+      expect(find.text('748100234567'), findsWidgets);
 
-      // Verify the barcode textfield in the modal has the scanned barcode
-      expect(find.text('748100234567'), findsOneWidget);
+      // Scan second barcode into Add Product modal
+      BarcodeScannerService.instance.dispatch('748100234568');
+      await tester.pump();
+
+      // Verify both barcodes are displayed
+      expect(find.text('748100234567'), findsWidgets);
+      expect(find.text('748100234568'), findsWidgets);
     });
   });
 }

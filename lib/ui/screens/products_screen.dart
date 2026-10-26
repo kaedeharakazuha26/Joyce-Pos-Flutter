@@ -138,7 +138,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
         builder: (ctx, setModalState) {
           unsubModal ??= BarcodeScannerService.instance.subscribe((barcode) {
             setModalState(() {
-              barcodeCtrl.text = barcode;
+              final current = barcodeCtrl.text.trim();
+              if (current.isEmpty) {
+                barcodeCtrl.text = barcode;
+              } else {
+                final list = current
+                    .split(RegExp(r'[,;\n]+'))
+                    .map((s) => s.trim())
+                    .where((s) => s.isNotEmpty)
+                    .toList();
+                if (!list.contains(barcode)) {
+                  list.add(barcode);
+                  barcodeCtrl.text = list.join(', ');
+                }
+              }
             });
             if (nameCtrl.text.endsWith(barcode)) {
               nameCtrl.text =
@@ -219,27 +232,73 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ],
                     const SizedBox(height: 12),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: barcodeCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Barcode',
-                              prefixIcon: Icon(Icons.qr_code_scanner, size: 18),
-                              helperText: 'Scan with barcode scanner or click Generate',
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextField(
+                                controller: barcodeCtrl,
+                                onChanged: (_) => setModalState(() {}),
+                                decoration: const InputDecoration(
+                                  labelText: 'Barcodes (comma-separated)',
+                                  hintText: 'e.g. 4800016644403, 4800016644410',
+                                  prefixIcon: Icon(Icons.qr_code_scanner, size: 18),
+                                  helperText: 'Scan or type 2 or more barcodes',
+                                ),
+                              ),
+                              if (barcodeCtrl.text.trim().isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: barcodeCtrl.text
+                                      .split(RegExp(r'[,;\n]+'))
+                                      .map((s) => s.trim())
+                                      .where((s) => s.isNotEmpty)
+                                      .map((bc) => Chip(
+                                            visualDensity: VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                                            label: Text(bc, style: const TextStyle(fontSize: 11)),
+                                            deleteIcon: const Icon(Icons.close, size: 12),
+                                            onDeleted: () {
+                                              setModalState(() {
+                                                final list = barcodeCtrl.text
+                                                    .split(RegExp(r'[,;\n]+'))
+                                                    .map((s) => s.trim())
+                                                    .where((s) => s.isNotEmpty && s != bc)
+                                                    .toList();
+                                                barcodeCtrl.text = list.join(', ');
+                                              });
+                                            },
+                                          ))
+                                      .toList(),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        JoyceButton(
-                          label: 'Generate',
-                          icon: Icons.autorenew,
-                          outline: true,
-                          onPressed: () {
-                            setModalState(() {
-                              barcodeCtrl.text = PosRepository.generateBarcode();
-                            });
-                          },
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: JoyceButton(
+                            label: 'Generate',
+                            icon: Icons.autorenew,
+                            outline: true,
+                            onPressed: () {
+                              setModalState(() {
+                                final gen = PosRepository.generateBarcode();
+                                final current = barcodeCtrl.text.trim();
+                                if (current.isEmpty) {
+                                  barcodeCtrl.text = gen;
+                                } else {
+                                  barcodeCtrl.text = '$current, $gen';
+                                }
+                              });
+                            },
+                          ),
                         ),
                       ],
                     ),

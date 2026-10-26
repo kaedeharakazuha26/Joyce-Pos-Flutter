@@ -109,11 +109,14 @@ class _PosScreenState extends State<PosScreen> {
     final q = rawBarcode.trim().toLowerCase();
     if (q.isEmpty) return;
 
-    // 1. Exact barcode match
+    // 1. Exact barcode match (supports products with multiple comma-separated barcodes)
     Map<String, dynamic>? match;
     for (final p in _products) {
-      final bc = (p['barcode'] as String? ?? '').trim().toLowerCase();
-      if (bc.isNotEmpty && bc == q) {
+      final bcs = (p['barcode'] as String? ?? '')
+          .split(RegExp(r'[,;\n]+'))
+          .map((s) => s.trim().toLowerCase())
+          .where((s) => s.isNotEmpty);
+      if (bcs.contains(q)) {
         match = p;
         break;
       }
@@ -124,10 +127,11 @@ class _PosScreenState extends State<PosScreen> {
       final cleanQ = q.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
       if (cleanQ.isNotEmpty) {
         for (final p in _products) {
-          final bc = (p['barcode'] as String? ?? '')
-              .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-              .toLowerCase();
-          if (bc.isNotEmpty && bc == cleanQ) {
+          final bcs = (p['barcode'] as String? ?? '')
+              .split(RegExp(r'[,;\n]+'))
+              .map((s) => s.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase())
+              .where((s) => s.isNotEmpty);
+          if (bcs.contains(cleanQ)) {
             match = p;
             break;
           }

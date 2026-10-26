@@ -660,7 +660,12 @@ class PosRepository {
     if (name.isEmpty) {
       throw Exception('Product name is required');
     }
-    final barcode = (data['barcode']?.toString() ?? '').trim();
+    final barcode = (data['barcode']?.toString() ?? '')
+        .split(RegExp(r'[,;\n]+'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet()
+        .join(', ');
     final category = (data['category']?.toString() ?? '').trim();
     final price = r2(num.tryParse(data['price']?.toString() ?? '0') ?? 0);
     final cost = r2(num.tryParse(data['cost']?.toString() ?? '0') ?? 0);
